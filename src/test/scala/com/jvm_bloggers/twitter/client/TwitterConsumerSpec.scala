@@ -41,10 +41,14 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
 
   def randomRTComment() = "Retweet integration test: : " + random.alphanumeric.take(35).mkString
 
-  override def afterAll(): Unit = {
+
+  override protected def afterAll(): Unit = {
     shutdown(system, 30.seconds)
+  }
+
+  override def afterEach(): Unit = {
     EmbeddedKafka.stop()
-    super.afterAll()
+    super.afterEach()
   }
 
   def produceMessage(topic: String, msg: String): Future[Done] = {
@@ -57,8 +61,8 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
       .runWith(Sink.ignore)
   }
 
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
     EmbeddedKafka.start()
   }
 
@@ -125,8 +129,8 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
 
     val msg = UpdateStatusMessage(randomStatus()).toJson.toString()
     Await.result(produceMessage(topicUpdateStatus, msg), remainingOrDefault)
-    val thirdTrySucessConsumer = new MockedConsumer()
-    val probe = thirdTrySucessConsumer.updateStatusSource.runWith(TestSink.probe)
+    val consumer = new MockedConsumer()
+    val probe = consumer.updateStatusSource.runWith(TestSink.probe)
     probe.request(1)
     probe.expectNext(Timeout, 15L)
     probe.cancel()
