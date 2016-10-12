@@ -1,22 +1,19 @@
-package com.jvm_bloggers.twitter.client
+package com.jvm_bloggers.twitter.client.connector
 
-import java.util.concurrent.Executors
-
+import com.jvm_bloggers.twitter.client.domain._
 import com.typesafe.config.ConfigFactory
 import twitter4j.conf.ConfigurationBuilder
 import twitter4j.{Status, Twitter, TwitterException, TwitterFactory}
+import scala.concurrent.ExecutionContext.Implicits._
+import scala.concurrent.Future
 
-import scala.concurrent.{ExecutionContext, Future}
 
-
-class TwitterClientImpl extends TwitterClient {
+class TwitterConnectorImpl extends TwitterConnector {
   private val config = ConfigFactory.load()
-  private val threadPoolSize = config.getInt("thread-pool-size")
-  private implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threadPoolSize))
 
-  override def updateStatus(status: UpdateStatusMessage): Future[Long] = getClient.flatMap(client => updateStatus(status.status,client))
+  override def updateStatus(status: UpdateStatusTweet): Future[Long] = getClient.flatMap(client => updateStatus(status.status,client))
 
-  override def retweet(tweetDto: ReTweetMessage): Future[Long] = {
+  override def retweet(tweetDto: ReTweet): Future[Long] = {
     getClient.flatMap { client =>
       val status = client.showStatus(tweetDto.tweetId)
       val userName = status.getUser.getName

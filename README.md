@@ -4,6 +4,8 @@
 
 ##Running
 
+You need to **have kafka running** on the adress specified in application.conf (by default localhost:9092)
+
 ### Sbt 
  * `sbt run`
  * custom port - `sbt -Dhttp.port=9001 run`

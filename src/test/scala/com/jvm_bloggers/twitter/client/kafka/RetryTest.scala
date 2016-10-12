@@ -1,12 +1,10 @@
-package com.jvm_bloggers.twitter.client
+package com.jvm_bloggers.twitter.client.kafka
 
-import odelay.Timer
 import org.scalatest.{FunSuite, Matchers}
-import retry.Success
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import concurrent.ExecutionContext.Implicits.global
 /**
   * Created by kuba on 03.10.16.
   */
@@ -17,7 +15,7 @@ class RetryTest extends FunSuite with Matchers {
     Await.result(future, 1 seconds) shouldBe (5)
   }
 
-  test("should retry once") {
+  test("should retry") {
     var tries = 0
     val eventualLong = () => Future {
       tries += 1

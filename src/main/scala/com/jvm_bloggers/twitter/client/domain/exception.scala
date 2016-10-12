@@ -1,4 +1,4 @@
-package com.jvm_bloggers.twitter.client
+package com.jvm_bloggers.twitter.client.domain
 
 /**
   * Created by kuba on 01.10.16.

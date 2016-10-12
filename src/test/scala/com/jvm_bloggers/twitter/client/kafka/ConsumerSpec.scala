@@ -1,4 +1,4 @@
-package com.jvm_bloggers.twitter.client
+package com.jvm_bloggers.twitter.client.kafka
 
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage.Message
@@ -9,6 +9,9 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.TestKit
 import akka.{Done, NotUsed}
+import com.jvm_bloggers.twitter.client.connector.TwitterConnector
+import com.jvm_bloggers.twitter.client.domain.{NewIssuePublished, ReTweet, UpdateStatusTweet}
+import com.jvm_bloggers.twitter.client.template.TemplateProvider
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{ByteArraySerializer, StringSerializer}
@@ -21,12 +24,12 @@ import scala.concurrent.{Await, Future}
 /**
   * Created by kuba on 29.09.16.
   */
-class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
+class ConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
   with WordSpecLike
   with Matchers
   with BeforeAndAfterAll
   with BeforeAndAfterEach
-  with KafkaConf {
+  with Configuration {
 
   implicit val materializer = ActorMaterializer()(system)
   implicit val executionContext = system.dispatcher
@@ -37,7 +40,10 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
   val producerSettings = ProducerSettings(system, new ByteArraySerializer, new StringSerializer)
     .withBootstrapServers(kafkaAdrress)
 
-  def randomStatus() = "Update status integration test : " + random.alphanumeric.take(100).mkString
+  def randomNewIssueMessage() = {
+    val randomInt = random.nextInt()
+    NewIssuePublished(randomInt,s"http://jvm-bloggers.com/issue/$randomInt").toJson.toString()
+  }
 
   def randomRTComment() = "Retweet integration test: : " + random.alphanumeric.take(35).mkString
 
@@ -67,21 +73,26 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
   }
 
   "should post status" in {
-    val msg = UpdateStatusMessage(randomStatus()).toJson.toString()
-    Await.result(produceMessage(topicUpdateStatus, msg), remainingOrDefault)
-    val consumer = new TwitterConsumer()
-    val probe = consumer.updateStatusSource.runWith(TestSink.probe)
+    val msg = randomNewIssueMessage()
+    Await.result(produceMessage(topicNewIssueReleased, msg), remainingOrDefault)
+    val consumer = new Consumer()
+    val probe = consumer.newIssueSource.runWith(TestSink.probe)
     probe.request(1)
     probe.expectNext(Timeout).toString should fullyMatch regex TweetIdRegex
     probe.cancel()
   }
 
   "Posting same status twice should be handled gracefully" in {
-    val msg = UpdateStatusMessage(randomStatus()).toJson.toString()
-    Await.result(produceMessage(topicUpdateStatus, msg), remainingOrDefault)
-    Await.result(produceMessage(topicUpdateStatus, msg), remainingOrDefault)
-    val consumer = new TwitterConsumer()
-    val probe = consumer.updateStatusSource.runWith(TestSink.probe)
+    val msg = randomNewIssueMessage()
+    Await.result(produceMessage(topicNewIssueReleased, msg), remainingOrDefault)
+    Await.result(produceMessage(topicNewIssueReleased, msg), remainingOrDefault)
+    class MockedConsumer extends Consumer{
+      override val templateProvider: TemplateProvider = new TemplateProvider {
+        override def getRandomNewIssueStatusTemplate: String = "constant template"
+      }
+    }
+    val consumer = new MockedConsumer()
+    val probe = consumer.newIssueSource.runWith(TestSink.probe)
     probe.request(2)
     probe.expectNext(d = Timeout).toString should fullyMatch regex TweetIdRegex
     probe.expectNext(d = Timeout) shouldBe (-1L)
@@ -89,9 +100,9 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
   }
 
   "Should retweet status" in {
-    val msg = ReTweetMessage(randomRTComment(), 768510460845035520L).toJson.toString()
+    val msg = ReTweet(randomRTComment(), 768510460845035520L).toJson.toString()
     Await.result(produceMessage(topicRetweetStatus, msg), remainingOrDefault)
-    val consumer = new TwitterConsumer()
+    val consumer = new Consumer()
     val probe = consumer.retweetSource.runWith(TestSink.probe)
     probe.request(1)
     probe.expectNext(d = Timeout).toString should fullyMatch regex TweetIdRegex
@@ -99,10 +110,10 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
   }
 
   "Retweeting same status twice should be handled gracefully" in {
-    val msg = ReTweetMessage(randomRTComment(), 768510460845035520L).toJson.toString()
+    val msg = ReTweet(randomRTComment(), 768510460845035520L).toJson.toString()
     Await.result(produceMessage(topicRetweetStatus, msg), remainingOrDefault)
     Await.result(produceMessage(topicRetweetStatus, msg), remainingOrDefault)
-    val consumer = new TwitterConsumer()
+    val consumer = new Consumer()
     val probe = consumer.retweetSource.runWith(TestSink.probe)
     probe.request(2)
     probe.expectNext(d = Timeout).toString should fullyMatch regex TweetIdRegex
@@ -112,38 +123,37 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
 
 
   "Should retry update status when client failed until sucesfull" in {
-    class MockedConsumer extends TwitterConsumer {
-        override val twitterClient = new TwitterClient {
+    class MockedConsumer extends Consumer {
+        override val twitterClient = new TwitterConnector {
         var counter = 0
 
-        override def updateStatus(updateStatusMessage: UpdateStatusMessage): Future[Long] = {
+        override def updateStatus(updateStatusMessage: UpdateStatusTweet): Future[Long] = {
           if(counter < 2) {
             counter += 1
             Future.failed(new RuntimeException())
           }
           Future(15L)
         }
-        override def retweet(reTweetMessage: ReTweetMessage): Future[Long] = ???
+        override def retweet(reTweetMessage: ReTweet): Future[Long] = ???
       }
     }
 
-    val msg = UpdateStatusMessage(randomStatus()).toJson.toString()
-    Await.result(produceMessage(topicUpdateStatus, msg), remainingOrDefault)
+    Await.result(produceMessage(topicNewIssueReleased, randomNewIssueMessage()), remainingOrDefault)
     val consumer = new MockedConsumer()
-    val probe = consumer.updateStatusSource.runWith(TestSink.probe)
+    val probe = consumer.newIssueSource.runWith(TestSink.probe)
     probe.request(1)
     probe.expectNext(Timeout, 15L)
     probe.cancel()
   }
 
   "Should retry retweet when client failed until sucesfull" in {
-    class MockedConsumer extends TwitterConsumer {
-      override val twitterClient = new TwitterClient {
+    class MockedConsumer extends Consumer {
+      override val twitterClient = new TwitterConnector {
         var counter = 0
 
-        override def updateStatus(updateStatusMessage: UpdateStatusMessage): Future[Long] = ???
+        override def updateStatus(updateStatusMessage: UpdateStatusTweet): Future[Long] = ???
 
-        override def retweet(reTweetMessage: ReTweetMessage): Future[Long] = {
+        override def retweet(reTweetMessage: ReTweet): Future[Long] = {
           if (counter < 2) {
             counter += 1
             Future.failed(new RuntimeException())
@@ -152,7 +162,7 @@ class TwitterConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
         }
       }
     }
-    val msg = ReTweetMessage(randomRTComment(),768510460845035520L).toJson.toString()
+    val msg = ReTweet(randomRTComment(),768510460845035520L).toJson.toString()
     Await.result(produceMessage(topicRetweetStatus, msg), remainingOrDefault)
     val thirdTrySucessConsumer = new MockedConsumer()
     val probe = thirdTrySucessConsumer.retweetSource.runWith(TestSink.probe)

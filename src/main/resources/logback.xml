@@ -14,7 +14,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.jvm_bloggers.twitter.client.TwitterConsumer" level="info">
+    <logger name="com.jvm_bloggers.twitter.client.kafka.Consumer" level="info">
         <appender-ref ref="MESSAGES_LOG" />
     </logger>
 
