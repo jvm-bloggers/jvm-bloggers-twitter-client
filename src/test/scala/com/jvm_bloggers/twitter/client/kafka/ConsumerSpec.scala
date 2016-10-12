@@ -88,7 +88,7 @@ class ConsumerSpec extends TestKit(ActorSystem("IntegrationSpec"))
     Await.result(produceMessage(topicNewIssueReleased, msg), remainingOrDefault)
     class MockedConsumer extends Consumer{
       override val templateProvider: TemplateProvider = new TemplateProvider {
-        override def getRandomNewIssueStatusTemplate: String = "constant template"
+        override def getRandomNewIssueStatusTemplate: String = "check out issue no <issueNumber>"
       }
     }
     val consumer = new MockedConsumer()
