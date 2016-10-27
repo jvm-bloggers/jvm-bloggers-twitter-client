@@ -3,6 +3,7 @@ name := "jvm-bloggers-twitter-client"
 version := "1.0"
 scalaVersion := "2.11.8"
 
+enablePlugins(DockerPlugin)
 
 libraryDependencies ++= {
   val akkaV = "2.4.9"
@@ -22,5 +23,20 @@ libraryDependencies ++= {
   )
 }
 
-
 resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
+
+imageNames in docker := Seq(
+  ImageName(s"jakubdziworski/${name.value}:latest"),
+  ImageName(s"jakubdziworski/${name.value}:${version.value}")
+)
+dockerfile in docker := {
+  // The assembly task generates a fat JAR file
+  val artifact: File = assembly.value
+  val artifactTargetPath = s"/app/${artifact.name}"
+
+  new Dockerfile {
+    from("java")
+    add(artifact, artifactTargetPath)
+    entryPoint("java", "-jar", artifactTargetPath)
+  }
+}

@@ -10,10 +10,6 @@ You need to **have kafka running** on the adress specified in application.conf (
  * `sbt run`
  * custom port - `sbt -Dhttp.port=9001 run`
  * different enviroment (prod)- `sbt -Dconfig.resource=application-prod.conf run`
-
-### Docker 
- * dev - `run-docker-dev.sh`
- * production - `run-docker-prod.sh`
  
 ## Test twitter account
 
