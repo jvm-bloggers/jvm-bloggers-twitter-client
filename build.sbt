@@ -26,8 +26,8 @@ libraryDependencies ++= {
 resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
 
 imageNames in docker := Seq(
-  ImageName(s"jakubdziworski/${name.value}:latest"),
-  ImageName(s"jakubdziworski/${name.value}:${version.value}")
+  ImageName(s"jvmbloggers/${name.value}:latest"),
+  ImageName(s"jvmbloggers/${name.value}:${version.value}")
 )
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
