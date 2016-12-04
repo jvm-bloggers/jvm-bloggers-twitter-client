@@ -16,5 +16,4 @@ Integration tests and dev enviroment use this fake account:
 https://twitter.com/JvmTest
 
 ### Pushing to Docker
-* `sbt docker` to build and image
-* `sbt dockerPush` to push it
+* `sbt dockerPush` to build and push
