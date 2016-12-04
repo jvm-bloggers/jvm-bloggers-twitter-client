@@ -9,7 +9,6 @@ You need to **have kafka running** on the adress specified in application.conf (
 ### Sbt 
  * `sbt run`
  * custom port - `sbt -Dhttp.port=9001 run`
- * different enviroment (prod)- `sbt -Dconfig.resource=application-prod.conf run`
  
 ## Test twitter account
 

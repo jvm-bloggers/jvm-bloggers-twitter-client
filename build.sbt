@@ -1,3 +1,6 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+
 name := "jvm-bloggers-twitter-client"
 
 version := "1.0"
@@ -26,8 +29,7 @@ libraryDependencies ++= {
 resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
 
 imageNames in docker := Seq(
-  ImageName(s"jvmbloggers/${name.value}:latest"),
-  ImageName(s"jvmbloggers/${name.value}:${version.value}")
+  ImageName(s"jvmbloggers/${name.value}:${getTimestampWithGitHash}")
 )
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
@@ -39,4 +41,10 @@ dockerfile in docker := {
     add(artifact, artifactTargetPath)
     entryPoint("java", "-jar", artifactTargetPath)
   }
+}
+
+def getTimestampWithGitHash: String  = {
+  val timeStamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date())
+  val gitCommit = "git log --pretty=format:%h -n 1".!!.stripLineEnd
+  s"$timeStamp-$gitCommit"
 }
