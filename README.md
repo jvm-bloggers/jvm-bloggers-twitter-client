@@ -1,8 +1,8 @@
-#Twitter client
+# Twitter client
 
 [![Build Status](https://travis-ci.org/jvm-bloggers/jvm-bloggers-twitter-client.svg?branch=master)](https://travis-ci.org/jvm-bloggers/jvm-bloggers-twitter-client)
 
-##Running
+## Running
 
 You need to **have kafka running** on the adress specified in application.conf (by default localhost:9092)
 
